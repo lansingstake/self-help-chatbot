@@ -199,10 +199,10 @@
       try {
         const res = await fetch(PROXY_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'text/plain' }, // ← key change
           body: JSON.stringify({
             message: text,
-            history: history.slice(0, -1) // exclude the message we just added
+            history: history.slice(0, -1)
           }),
           redirect: 'follow'
         });
