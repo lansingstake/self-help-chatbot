@@ -36,6 +36,7 @@
     padding: 16px;
     display: flex;
     flex-direction: column;
+    justify-content: flex-start;
     gap: 12px;
     -webkit-overflow-scrolling: touch;
   }
@@ -149,7 +150,7 @@
     <p>Ask me about support resources, services, and guidance</p>
   </div>
 
-  <div id="chat-window" id="chat-window">
+  <div id="chat-window">
     <div class="bubble bot">
       Hi there! I'm here to help you find support services and resources, including those right here in Michigan — such as mental health support, food assistance, addiction recovery, housing help, employment services, and much more.<br><br>
       Just tell me what you're looking for and I'll do my best to connect you with the right resources. 💙<br><br>
@@ -279,6 +280,8 @@
     // Notify on load and when window resizes
     window.addEventListener('load', notifyParentHeight);
     window.addEventListener('resize', notifyParentHeight);
+
+    chatWindow.scrollTop = 0;
     
   </script>
 
