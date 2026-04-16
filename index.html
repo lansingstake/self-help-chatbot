@@ -45,6 +45,12 @@
       line-height: 1.6;
       word-wrap: break-word;
     }
+    
+    .bubble.bot br + br {
+      display: block;
+      margin-top: 6px;
+      content: "";
+    }
     .bubble.user {
       background: #1a5276;
       color: white;
@@ -57,6 +63,7 @@
       align-self: flex-start;
       border-bottom-left-radius: 4px;
       box-shadow: 0 1px 4px rgba(0,0,0,0.09);
+      line-height: 1.8;
     }
     .bubble.bot a {
       color: #1a5276;
@@ -170,7 +177,7 @@
         .replace(/\n/g, '<br>')
         .replace(
           /(https?:\/\/[^\s<>"]+)/g,
-          '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+          '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:#1a5276;text-decoration:underline;word-break:break-all;">$1</a>'
         );
 
       div.innerHTML = formatted;
