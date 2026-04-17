@@ -74,7 +74,8 @@
   .bubble.bot a {
     color: #1a5276;
     text-decoration: underline;
-    word-break: break-all;
+    word-break: break-word;
+    overflow-wrap: break-word;
   }
   .bubble.typing {
     color: #aaa;
@@ -209,11 +210,17 @@
         .replace(/\*(.*?)\*/g, '<em>$1</em>')
         .replace(/\n/g, '<br>');
     
-      // Now restore links as proper anchor tags
+      // Restore links as proper anchor tags with clean display text
       links.forEach((url, index) => {
+        // Extract clean domain name for display
+        const display = url
+          .replace(/^https?:\/\/(www\.)?/, '') // remove https://www.
+          .replace(/\/.*$/, '')                 // remove everything after domain
+          .replace(/\?.*$/, '');               // remove query strings
+      
         processed = processed.replace(
           `%%LINK${index}%%`,
-          `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#1a5276;text-decoration:underline;word-break:break-all;">${url}</a>`
+          `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#1a5276;text-decoration:underline;overflow-wrap:break-word;">${display}</a>`
         );
       });
     
