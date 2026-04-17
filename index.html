@@ -188,39 +188,41 @@
       const div = document.createElement('div');
       div.className = `bubble ${role}`;
     
-      // Process in the correct order:
-      // 1. Replace URLs with placeholders FIRST (before any HTML is added)
-      // 2. Escape nothing - just build clean HTML
-    
       const links = [];
-      
-      // Extract all URLs and replace with placeholders
+    
+      // Extract https:// AND www. links, also strip surrounding parentheses
       let processed = text.replace(
-        /https?:\/\/[^\s)>\].,!?;:]+[^\s)>\].,!?;:]/g,
+        /\(?(https?:\/\/|www\.)[^\s)>\].,!?;:]*[^\s)>\].,!?;:\)]/g,
         match => {
+          // Remove leading ( if present
+          const clean = match.replace(/^\(/, '');
           const index = links.length;
-          links.push(match);
+          links.push(clean);
           return `%%LINK${index}%%`;
         }
       );
     
-      // Now apply markdown formatting
+      // Apply markdown formatting
       processed = processed
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.*?)\*/g, '<em>$1</em>')
         .replace(/\n/g, '<br>');
     
-      // Restore links as proper anchor tags with clean display text
+      // Restore links with clean display text
       links.forEach((url, index) => {
-        // Extract clean domain name for display
+        // Build proper href
+        const href = url.startsWith('http') ? url : 'https://' + url;
+    
+        // Clean display — just the domain name
         const display = url
-          .replace(/^https?:\/\/(www\.)?/, '') // remove https://www.
-          .replace(/\/.*$/, '')                 // remove everything after domain
-          .replace(/\?.*$/, '');               // remove query strings
-      
+          .replace(/^https?:\/\//, '')
+          .replace(/^www\./, '')
+          .replace(/\/.*$/, '')
+          .replace(/\?.*$/, '');
+    
         processed = processed.replace(
           `%%LINK${index}%%`,
-          `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#1a5276;text-decoration:underline;overflow-wrap:break-word;">${display}</a>`
+          `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:#1a5276;text-decoration:underline;overflow-wrap:break-word;">${display}</a>`
         );
       });
     
