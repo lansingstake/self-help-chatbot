@@ -186,24 +186,28 @@
     function addBubble(text, role) {
       const div = document.createElement('div');
       div.className = `bubble ${role}`;
-
-      const formatted = text
-      // First pass - handle full https:// links
-      .replace(
-        /(https?:\/\/[^\s<>"()[\]]+?)([.,!?]*(?=\s|<br|$))/g,
-        '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:#1a5276;text-decoration:underline;word-break:break-all;">$1</a>'
-      )
-      // Second pass - handle www. and bare domain links not already linked
-      .replace(
-        /(?<!href="|">)(?<![\/\w])((?:www\.)[a-zA-Z0-9\-]+(?:\.[a-zA-Z]{2,})+(?:\/[^\s<>"()[\]]*)?)/g,
-        '<a href="https://$1" target="_blank" rel="noopener noreferrer" style="color:#1a5276;text-decoration:underline;word-break:break-all;">$1</a>'
-      )
-      // Third pass - handle bare domains like FindHelp.org and 211.org
-      .replace(
-        /(?<!href="|">|\/\/|\w)((?:FindHelp|211|LatterDaySaintJobs|sexaddict|sexhelp|sanon|dbsalliance|socialphobia|theguardrail|fathers|strengtheningmarriage|ocfoundation|resolve|NationalEatingDisorders|edreferral|alz|adaa|nimh)\.(?:org|com|net))/gi,
-        '<a href="https://$1" target="_blank" rel="noopener noreferrer" style="color:#1a5276;text-decoration:underline;word-break:break-all;">$1</a>'
+    
+      // Step 1: Bold and italic
+      let formatted = text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>');
+    
+      // Step 2: Convert line breaks
+      formatted = formatted.replace(/\n/g, '<br>');
+    
+      // Step 3: Single clean link replacement
+      // Matches http/https URLs and bare domains, strips trailing punctuation
+      formatted = formatted.replace(
+        /(?:https?:\/\/|www\.)[a-zA-Z0-9\-._~:/?#[\]@!$&'()*+,;=%]+/g,
+        match => {
+          // Strip trailing punctuation characters
+          const clean = match.replace(/[.,!?;:)(\]]+$/, '');
+          // Build full href
+          const href = clean.startsWith('http') ? clean : 'https://' + clean;
+          return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:#1a5276;text-decoration:underline;word-break:break-all;">${clean}</a>`;
+        }
       );
-
+    
       div.innerHTML = formatted;
       chatWindow.appendChild(div);
       chatWindow.scrollTop = chatWindow.scrollHeight;
