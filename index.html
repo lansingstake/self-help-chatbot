@@ -188,13 +188,21 @@
       div.className = `bubble ${role}`;
 
       const formatted = text
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.*?)\*/g,     '<em>$1</em>')
-        .replace(/\n/g, '<br>')
-        .replace(
-          /(https?:\/\/[^\s<>"()[\]]+?)([.,!?)]*(?=\s|<|$))/g,
-          '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:#1a5276;text-decoration:underline;word-break:break-all;">$1</a>'
-        );
+      // First pass - handle full https:// links
+      .replace(
+        /(https?:\/\/[^\s<>"()[\]]+?)([.,!?]*(?=\s|<br|$))/g,
+        '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:#1a5276;text-decoration:underline;word-break:break-all;">$1</a>'
+      )
+      // Second pass - handle www. and bare domain links not already linked
+      .replace(
+        /(?<!href="|">)(?<![\/\w])((?:www\.)[a-zA-Z0-9\-]+(?:\.[a-zA-Z]{2,})+(?:\/[^\s<>"()[\]]*)?)/g,
+        '<a href="https://$1" target="_blank" rel="noopener noreferrer" style="color:#1a5276;text-decoration:underline;word-break:break-all;">$1</a>'
+      )
+      // Third pass - handle bare domains like FindHelp.org and 211.org
+      .replace(
+        /(?<!href="|">|\/\/|\w)((?:FindHelp|211|LatterDaySaintJobs|sexaddict|sexhelp|sanon|dbsalliance|socialphobia|theguardrail|fathers|strengtheningmarriage|ocfoundation|resolve|NationalEatingDisorders|edreferral|alz|adaa|nimh)\.(?:org|com|net))/gi,
+        '<a href="https://$1" target="_blank" rel="noopener noreferrer" style="color:#1a5276;text-decoration:underline;word-break:break-all;">$1</a>'
+      );
 
       div.innerHTML = formatted;
       chatWindow.appendChild(div);
