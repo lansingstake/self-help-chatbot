@@ -190,39 +190,34 @@
     
       const links = [];
     
-      // Extract https:// AND www. links, also strip surrounding parentheses
+      // Pull out only clean https:// links
       let processed = text.replace(
-        /\(?(https?:\/\/|www\.)[^\s)>\].,!?;:]*[^\s)>\].,!?;:\)]/g,
+        /https?:\/\/[^\s<>"()[\]]+/g,
         match => {
-          // Remove leading ( if present
-          const clean = match.replace(/^\(/, '');
+          // Strip trailing punctuation
+          const clean = match.replace(/[.,!?;:)(\]]+$/, '');
           const index = links.length;
           links.push(clean);
           return `%%LINK${index}%%`;
         }
       );
     
-      // Apply markdown formatting
+      // Markdown formatting
       processed = processed
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.*?)\*/g, '<em>$1</em>')
         .replace(/\n/g, '<br>');
     
-      // Restore links with clean display text
+      // Restore as clean links
       links.forEach((url, index) => {
-        // Build proper href
-        const href = url.startsWith('http') ? url : 'https://' + url;
-    
-        // Clean display — just the domain name
         const display = url
-          .replace(/^https?:\/\//, '')
-          .replace(/^www\./, '')
+          .replace(/^https?:\/\/(www\.)?/, '')
           .replace(/\/.*$/, '')
           .replace(/\?.*$/, '');
     
         processed = processed.replace(
           `%%LINK${index}%%`,
-          `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:#1a5276;text-decoration:underline;overflow-wrap:break-word;">${display}</a>`
+          `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#1a5276;text-decoration:underline;overflow-wrap:break-word;">${display}</a>`
         );
       });
     
@@ -231,7 +226,6 @@
       chatWindow.scrollTop = chatWindow.scrollHeight;
       return div;
     }
-
     
     // ── Send message ──────────────────────────────────────────
     async function sendMessage() {
