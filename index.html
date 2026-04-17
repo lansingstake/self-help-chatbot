@@ -192,7 +192,7 @@
     
       // Pull out only clean https:// links
       let processed = text.replace(
-        /https?:\/\/[^\s<>"()[\]]+/g,
+        /(?:https?:\/\/|www\.)[^\s<>"()[\]]+/g,
         match => {
           // Strip trailing punctuation
           const clean = match.replace(/[.,!?;:)(\]]+$/, '');
@@ -210,17 +210,19 @@
     
       // Restore as clean links
       links.forEach((url, index) => {
-        const display = url
-          .replace(/^https?:\/\/(www\.)?/, '')
-          .replace(/\/.*$/, '')
-          .replace(/\?.*$/, '');
+      const href = url.startsWith('http') ? url : 'https://' + url;
+      const display = url
+        .replace(/^https?:\/\/(www\.)?/, '')
+        .replace(/^www\./, '')
+        .replace(/\/.*$/, '')
+        .replace(/\?.*$/, '');
     
-        processed = processed.replace(
-          `%%LINK${index}%%`,
-          `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#1a5276;text-decoration:underline;overflow-wrap:break-word;">${display}</a>`
-        );
-      });
-    
+      processed = processed.replace(
+        `%%LINK${index}%%`,
+        `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:#1a5276;text-decoration:underline;overflow-wrap:break-word;">${display}</a>`
+      );
+    });
+        
       div.innerHTML = processed;
       chatWindow.appendChild(div);
       chatWindow.scrollTop = chatWindow.scrollHeight;
