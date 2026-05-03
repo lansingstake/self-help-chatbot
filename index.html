@@ -252,46 +252,23 @@
           headers: { 'Content-Type': 'text/plain' }, // ← key change
           body: JSON.stringify({
             message: text,
-            history: history.slice(0, -1)
+            history: history.slice(-5, -1)
           }),
           redirect: 'follow'
         });
 
-        const rawText = await res.text();
-        console.log('HTTP status:', res.status);
-        console.log('Raw backend response:', rawText);
-        
+        const data = await res.json();
         typingDiv.remove();
-        
-        let data;
-        try {
-          data = JSON.parse(rawText);
-        } catch (err) {
-          addBubble(
-            'Backend returned non-JSON response:<br><br>' + rawText.substring(0, 800),
-            'bot'
-          );
-          return;
-        }
-        
+
         if (data.error) {
           addBubble(
-            'Backend error:<br><br>' + data.error,
+            'Sorry, something went wrong. Please try again in a moment.',
             'bot'
           );
-          return;
+        } else {
+          addBubble(data.reply, 'bot');
+          history.push({ role: 'assistant', content: data.reply });
         }
-        
-        if (!data.reply) {
-          addBubble(
-            'No reply returned from backend.<br><br>Raw response:<br>' + rawText.substring(0, 800),
-            'bot'
-          );
-          return;
-        }
-        
-        addBubble(data.reply, 'bot');
-        history.push({ role: 'assistant', content: data.reply });
 
       } catch (err) {
         typingDiv.remove();
