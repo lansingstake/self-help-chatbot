@@ -62,12 +62,6 @@
       white-space: normal;
     }
 
-    .bubble.bot br + br {
-      display: block;
-      margin-top: 6px;
-      content: "";
-    }
-
     .bubble.user {
       background: #1a5276;
       color: white;
@@ -81,14 +75,84 @@
       align-self: flex-start;
       border-bottom-left-radius: 4px;
       box-shadow: 0 1px 4px rgba(0,0,0,0.09);
-      line-height: 1.8;
+      line-height: 1.55;
     }
 
-    .bubble.bot a {
+    /* ── Rich formatting inside bot replies ── */
+    .bubble.bot p { margin: 0 0 8px; }
+    .bubble.bot > :last-child { margin-bottom: 0; }
+
+    .bubble.bot h4 {
+      font-size: 15px;
       color: #1a5276;
-      text-decoration: underline;
-      word-break: break-word;
-      overflow-wrap: break-word;
+      margin: 12px 0 6px;
+    }
+    .bubble.bot > h4:first-child { margin-top: 0; }
+
+    .bubble.bot strong { color: #154360; }
+
+    .bubble.bot ul,
+    .bubble.bot ol {
+      margin: 4px 0 10px;
+      padding-left: 22px;
+    }
+    .bubble.bot li { margin: 6px 0; }
+    .bubble.bot li::marker {
+      color: #1a5276;
+      font-weight: 700;
+    }
+
+    /* Numbered resources get a light divider between them */
+    .bubble.bot > ol > li + li {
+      border-top: 1px solid #eef2f6;
+      padding-top: 8px;
+    }
+
+    /* Details under a resource (phone, address, link…) */
+    .bubble.bot li ul {
+      margin: 4px 0 2px;
+      padding-left: 16px;
+    }
+    .bubble.bot li li {
+      margin: 2px 0;
+      font-size: 0.95em;
+      color: #444;
+    }
+    .bubble.bot li li::marker { font-weight: 400; }
+
+    .bubble.bot hr {
+      border: 0;
+      border-top: 1px solid #e3e9ef;
+      margin: 12px 0;
+    }
+
+    /* Website / email links render as tappable pills */
+    .bubble.bot a.link {
+      display: inline-block;
+      max-width: 100%;
+      padding: 0 9px;
+      margin: 1px 0;
+      border-radius: 999px;
+      background: #eaf2f8;
+      color: #1a5276;
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: bottom;
+    }
+    .bubble.bot a.link::after {
+      content: " ↗";
+      font-weight: 400;
+    }
+    .bubble.bot a.link:hover { background: #d4e6f1; }
+
+    /* Phone numbers are tap-to-call on mobile */
+    .bubble.bot a.tel {
+      color: #1a5276;
+      font-weight: 600;
+      white-space: nowrap;
     }
 
     .bubble.typing {
@@ -208,9 +272,8 @@
 
   <div id="chat-window">
     <div class="bubble bot">
-      I can help you find support services and resources, including those right here in Michigan. Tell me what you're looking for.
-      <br>
-      <strong>If you're in crisis, please call or text 988, or call 911 for emergencies.</strong>
+      <p>I can help you find support services and resources, including those right here in Michigan. Tell me what you're looking for.</p>
+      <p><strong>If you're in crisis, please call or text 988, or call 911 for emergencies.</strong></p>
     </div>
   </div>
 
@@ -269,50 +332,155 @@
         .replace(/'/g, '&#039;');
     }
 
+    // ── Pull out links, emails and phone numbers ─────────────
+    // Done on the raw text (before escaping) so URLs stay intact.
+    // Each match becomes a @@TOKENn@@ placeholder holding safe HTML.
+    function extractTokens(text, tokens) {
+      const stash = html => {
+        tokens.push(html);
+        return `@@TOKEN${tokens.length - 1}@@`;
+      };
+
+      // Keep trailing punctuation ("…at 211.org.") out of the link.
+      const splitTrailing = raw => {
+        const m = raw.match(/[.,!?;:'")\]]+$/);
+        return m ? [raw.slice(0, -m[0].length), m[0]] : [raw, ''];
+      };
+
+      const shortLabel = url => url
+        .replace(/^https?:\/\//i, '')
+        .replace(/^www\./i, '')
+        .replace(/[\/?#].*$/, '');
+
+      const linkHtml = (href, label) =>
+        `<a class="link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
+
+      return text
+        // Markdown links: [label](https://…)
+        .replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/gi,
+          (_, label, url) => stash(linkHtml(url, label)))
+
+        // Full URLs and www. addresses
+        .replace(/\b(?:https?:\/\/|www\.)[^\s<>"'()[\]{}]+/gi, raw => {
+          const [url, tail] = splitTrailing(raw);
+          const href = /^https?:/i.test(url) ? url : 'https://' + url;
+          return stash(linkHtml(href, shortLabel(url))) + tail;
+        })
+
+        // Email addresses
+        .replace(/\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b/g,
+          email => stash(`<a class="link" href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a>`))
+
+        // Bare domains like 211.org or FindHelp.org
+        .replace(/\b[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)*\.(?:org|com|gov|net|edu|us|info)\b(?:\/[^\s<>"'()[\]{}]*)?/gi, raw => {
+          const [url, tail] = splitTrailing(raw);
+          return stash(linkHtml('https://' + url, shortLabel(url))) + tail;
+        })
+
+        // Phone numbers like (517) 555-1234 or 1-800-555-1234
+        .replace(/(?:\+?1[\s.-]?)?(?:\(\d{3}\)\s?|\b\d{3}[\s.-])\d{3}[\s.-]\d{4}\b/g,
+          phone => stash(`<a class="tel" href="tel:${phone.replace(/[^\d+]/g, '')}">${escapeHtml(phone)}</a>`));
+    }
+
+    // ── Bold / italic ─────────────────────────────────────────
+    function formatInline(text) {
+      return text
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/__(.+?)__/g, '<strong>$1</strong>')
+        .replace(/(^|[^*])\*(?!\s)([^*]+?)\*(?!\*)/g, '$1<em>$2</em>');
+    }
+
+    // ── Turn a bot reply into paragraphs, headings and lists ─
+    function renderRichText(text) {
+      const tokens = [];
+      const lines = escapeHtml(extractTokens(text || '', tokens)).split(/\r?\n/);
+
+      const blocks = [];
+      let para = null;   // paragraph currently being built
+      let list = null;   // list currently being built
+
+      lines.forEach(line => {
+        const indent   = line.match(/^\s*/)[0].length;
+        const trimmed  = line.trim();
+        const bullet   = trimmed.match(/^[-*•]\s+(.*)$/);
+        const numbered = trimmed.match(/^(\d+)[.)]\s+(.*)$/);
+        const heading  = trimmed.match(/^#{1,6}\s+(.*)$/);
+        const lastItem = list && list.items[list.items.length - 1];
+
+        if (!trimmed) {
+          para = null;
+          return;
+        }
+
+        if (/^([-*_])\1{2,}$/.test(trimmed)) {
+          blocks.push({ type: 'html', html: '<hr>' });
+          para = list = null;
+          return;
+        }
+
+        if (heading) {
+          blocks.push({ type: 'html', html: `<h4>${formatInline(heading[1])}</h4>` });
+          para = list = null;
+          return;
+        }
+
+        // Details under a numbered resource: indented lines, or bullets
+        // directly beneath a numbered item.
+        if (lastItem && (indent >= 2 || (bullet && list.tag === 'ol'))) {
+          if (bullet) lastItem.sub.push(bullet[1]);
+          else lastItem.lines.push(trimmed);
+          return;
+        }
+
+        if (bullet || numbered) {
+          const tag = bullet ? 'ul' : 'ol';
+          if (!list || list.tag !== tag) {
+            list = { type: 'list', tag, start: numbered ? Number(numbered[1]) : 1, items: [] };
+            blocks.push(list);
+          }
+          list.items.push({ lines: [bullet ? bullet[1] : numbered[2]], sub: [] });
+          para = null;
+          return;
+        }
+
+        list = null;
+        if (para) {
+          para.lines.push(trimmed);
+        } else {
+          para = { type: 'p', lines: [trimmed] };
+          blocks.push(para);
+        }
+      });
+
+      const html = blocks.map(block => {
+        if (block.type === 'html') return block.html;
+        if (block.type === 'p') return `<p>${formatInline(block.lines.join('<br>'))}</p>`;
+
+        const items = block.items.map(item => {
+          const sub = item.sub.length
+            ? `<ul>${item.sub.map(s => `<li>${formatInline(s)}</li>`).join('')}</ul>`
+            : '';
+          return `<li>${formatInline(item.lines.join('<br>'))}${sub}</li>`;
+        }).join('');
+
+        const start = block.tag === 'ol' && block.start !== 1 ? ` start="${block.start}"` : '';
+        return `<${block.tag}${start}>${items}</${block.tag}>`;
+      }).join('');
+
+      return html.replace(/@@TOKEN(\d+)@@/g, (_, i) => tokens[i]);
+    }
+
     // ── Render a chat bubble ──────────────────────────────────
     function addBubble(text, role) {
       const div = document.createElement('div');
       div.className = `bubble ${role}`;
 
-      const links = [];
-
-      // Escape first so raw HTML cannot execute.
-      let processed = escapeHtml(text);
-
-      // Pull out clean links before markdown formatting.
-      processed = processed.replace(
-        /(?:https?:\/\/|www\.)[^\s&lt;&gt;&quot;'()[\]]+/g,
-        match => {
-          const clean = match.replace(/[.,!?;:)(\]]+$/, '');
-          const index = links.length;
-          links.push(clean);
-          return `%%LINK${index}%%`;
-        }
-      );
-
-      // Markdown formatting.
-      processed = processed
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-        .replace(/\n/g, '<br>');
-
-      // Restore links.
-      links.forEach((url, index) => {
-        const href = url.startsWith('http') ? url : 'https://' + url;
-
-        const display = url
-          .replace(/^https?:\/\/(www\.)?/, '')
-          .replace(/^www\./, '')
-          .replace(/\/.*$/, '')
-          .replace(/\?.*$/, '');
-
-        processed = processed.replace(
-          `%%LINK${index}%%`,
-          `<a href="${href}" target="_blank" rel="noopener noreferrer">${display}</a>`
-        );
-      });
-
-      div.innerHTML = processed;
+      // Bot replies get rich formatting; user text and the typing
+      // indicator are shown as plain (escaped) text.
+      const rich = role.startsWith('bot') && !role.includes('typing');
+      div.innerHTML = rich
+        ? renderRichText(text)
+        : escapeHtml(text).replace(/\n/g, '<br>');
       chatWindow.appendChild(div);
       chatWindow.scrollTop = chatWindow.scrollHeight;
 
