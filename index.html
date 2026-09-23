@@ -394,8 +394,10 @@
     // <br> tags become line breaks, and Markdown tables become a
     // numbered list (first column bold, other columns as detail lines).
     function normalizeReply(text) {
-      const lines = (text || '').split(/\r?\n/);
-      const br = /\s*<br\s*\/?>\s*/gi;
+      // The model often writes non-breaking / unicode hyphens
+      // ("989‑224‑6702"); plain hyphens let phone numbers be detected.
+      const lines = (text || '').replace(/[‐-‒−]/g, '-').split(/\r?\n/);
+      const br =/\s*<br\s*\/?>\s*/gi;
 
       const out = [];
       let headers = null;
