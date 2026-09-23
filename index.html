@@ -390,10 +390,54 @@
         .replace(/(^|[^*])\*(?!\s)([^*]+?)\*(?!\*)/g, '$1<em>$2</em>');
     }
 
+    // ── Clean up output the model sometimes produces ─────────
+    // <br> tags become line breaks, and Markdown tables become a
+    // numbered list (first column bold, other columns as detail lines).
+    function normalizeReply(text) {
+      const lines = (text || '').split(/\r?\n/);
+      const br = /\s*<br\s*\/?>\s*/gi;
+
+      const out = [];
+      let headers = null;
+      let rowNum = 0;
+      const cells = line => line.trim().replace(/^\||\|$/g, '').split('|')
+        .map(c => c.replace(br, '; ').replace(/^[;\s]+|[;\s]+$/g, '').replace(/;\s*[•·-]\s*/g, '; ').replace(/:\s*;\s*/g, ': ').trim());
+
+      lines.forEach((line, i) => {
+        const isRow = /^\s*\|.*\|\s*$/.test(line);
+        const isDivider = /^\s*\|[\s:|-]+\|\s*$/.test(line);
+
+        if (!isRow) {
+          headers = null;
+          out.push(line.replace(br, '\n'));
+          return;
+        }
+        if (isDivider) return;
+
+        // Header row = a table row followed by a |---| divider line
+        if (!headers && /^\s*\|[\s:|-]+\|\s*$/.test(lines[i + 1] || '')) {
+          headers = cells(line);
+          rowNum = 0;
+          return;
+        }
+
+        const row = cells(line);
+        rowNum++;
+        out.push(`${rowNum}. **${row[0].replace(/\*\*/g, '')}**`);
+        row.slice(1).forEach((cell, c) => {
+          if (!cell) return;
+          const label = headers && headers[c + 1] ? `${headers[c + 1]}: ` : '';
+          out.push(`   - ${label}${cell}`);
+        });
+      });
+
+      return out.join('\n');
+    }
+
     // ── Turn a bot reply into paragraphs, headings and lists ─
     function renderRichText(text) {
       const tokens = [];
-      const lines = escapeHtml(extractTokens(text || '', tokens)).split(/\r?\n/);
+      const lines = escapeHtml(extractTokens(normalizeReply(text), tokens)).split(/\r?\n/);
 
       const blocks = [];
       let para = null;   // paragraph currently being built
